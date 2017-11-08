@@ -27,6 +27,7 @@ import email
 import time
 from datetime import datetime
 
+#Email bot thread
 class EmailBot(threading.Thread):
     def __init__(self, username, password):
         super(EmailBot, self).__init__()
@@ -47,11 +48,14 @@ class EmailBot(threading.Thread):
 
         self.login(username, password)
     
+    #stop the email bot thread
     def stop(self):
         self.imap.close()
         self.imap.logout()
+        print("Logged out of session")
         self._stop_event.set()
 
+    #checks if the email bot has the stop flag
     def stopped(self):
         return self._stop_event.is_set()
 
@@ -59,7 +63,6 @@ class EmailBot(threading.Thread):
     def login(self, username, password):
         try:
             retcode, capabilities = self.imap.login(username, password)
-            print(retcode)
             print(capabilities)
             self.imap.select("Inbox")
             self.checkEmail()
@@ -133,6 +136,7 @@ class EmailBot(threading.Thread):
         response = requests.post(url_response, data=self.submission, headers=user_agent)
         print("Took %s seconds to submit the form" % (datetime.now() - starttime))
 
+    #loop for the email bot
     def run(self):
         while True:
             if (self.stopped()):
@@ -140,6 +144,7 @@ class EmailBot(threading.Thread):
             self.checkEmail()
             time.sleep(3)
 
+#main method
 def main():
     username = input("Gmail username: ")
     password = getpass()
