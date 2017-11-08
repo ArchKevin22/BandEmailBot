@@ -76,7 +76,6 @@ class EmailBot(threading.Thread):
         self.stop()
         print("Have a nice day!")
         sys.exit(0)
-        
 
     def check_email(self):
         '''Checks your email and hunts for the Google Form link if
