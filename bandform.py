@@ -7,8 +7,6 @@ The "Band Form Autofill Script" is a script that
 autofills the band form with the necessary
 inputs, and submits them for that dank Under Armour gear.
 
-Requires the band form link.
-
 This script is reliant on the fact that there are exactly 5 inputs.
 This script does not work against captchas.
 This script will need to change if there are added/changed inputs.
@@ -17,70 +15,138 @@ FOR EDUCATIONAL PURPOSES ONLY, DON'T BE MEAN
 '''
 
 import re
+import os
+from getpass import getpass
 import urllib.request as u
+import threading
 import sys
+import signal
 import requests
+import imaplib
+import email
+import time
 from datetime import datetime
 
-if len(sys.argv) != 2:
-    print('Usage: ./bandform.py <LINK> \nor\npython3 bandform.py <LINK>\n')
-    exit(2)
+class EmailBot(threading.Thread):
+    def __init__(self, username, password):
+        super(EmailBot, self).__init__()
+        self._stop_event = threading.Event()
+        self.imap = imaplib.IMAP4_SSL('imap.gmail.com',993)
 
-#initialize the structs and get the form
-starttime = datetime.now()
-url = sys.argv[1]
-url_formresponse = re.sub('viewform.*', 'formResponse', url)
-page = u.urlopen(url)
-page_text = page.read().decode("utf-8")
-submission = {}
-your_info = {}
-entrylist = []
+        ###Your information (FILL THIS OUT CAREFULLY)###
+        self.FIRSTNAME = "Kevin"
+        self.LASTNAME = "Kou"
+        self.INSTRUMENT = "G2 (Trombone 2)"
+        self.YEARINBAND = "3"
+        self.COMMENTS = ""
 
-#finding the order of the inputs
-instrument_pos = re.search('Instrument', page_text).start(0)
-lastname_pos = re.search('Last Name', page_text).start(0)
-firstname_pos = re.search('First Name', page_text).start(0)
-yearinband_pos = re.search('Year in Band', page_text).start(0)
-comments_pos = re.search('Comments', page_text).start(0)
+        #initialize some values for efficiency sake
+        self.submission = {}
+        self.submission['fvv'] = '1'
+        self.submission['pageHistory'] = '0'
 
-###Your information (FILL THIS OUT CAREFULLY)###
-#Your instrument code
-your_info[instrument_pos] = "G2 (Trombone 2)"
-#Your last name
-your_info[lastname_pos] = "Kou"
-#Your first name
-your_info[firstname_pos] = "Kevin"
-#Your year in band
-your_info[yearinband_pos] = "3"
-#Comments
-your_info[comments_pos] = ""
+        self.login(username, password)
+    
+    def stop(self):
+        self.imap.close()
+        self.imap.logout()
+        self._stop_event.set()
 
-#Finding Google Form entries from the form
-for m in re.finditer('entry\.[0-9-]*', page_text):
-    entrylist.append(m.group())
+    def stopped(self):
+        return self._stop_event.is_set()
 
-#Building POST request
-i = 0
-for key in sorted(your_info):
-    submission[entrylist[i]] = your_info[key]
-    i += 1
+    #attempts login for email address, program exits if failed
+    def login(self, username, password):
+        try:
+            retcode, capabilities = self.imap.login(username, password)
+            print(retcode)
+            print(capabilities)
+            self.imap.select("Inbox")
+            self.checkEmail()
+        except:
+            print(sys.exc_info()[1])
+            sys.exit(1)
 
-#metadata
-fbzx_substring = re.search('\"fbzx\" value=\"[0-9-]*\"', page_text).group()
-fbzx_value = re.search('[0-9-]+', fbzx_substring).group()
-fbzx_value_quotes = '"' + fbzx_value + '"'
-submission['draftResponse'] = [None,None,fbzx_value_quotes]
-submission['fbzx'] = fbzx_value
-submission['fvv'] = '1'
-submission['pageHistory'] = '0'
-url_refer = re.sub('viewform.*', 'viewform\?fbzx=', url) + fbzx_value
-user_agent = {'Referer': url_refer, 'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36"}
+    #checks your email every X seconds (specified by the interval)
+    def checkEmail(self):
+       retcode, messages = self.imap.search(None, '(UNSEEN)')
+       if retcode == 'OK':
+            for num in messages[0].split():
+                typ, data = self.imap.fetch(num,'(RFC822)')
+                msg = data[0][1].decode("utf-8").replace('\r\n', '')
+                if 'Ken Fisher' in msg:
+                    print("Message found, processing %s", re.search('Subject: .* CallM', \
+                    msg).group()[:-1])
+                    url = re.search('<https:\/\/docs.google.com\/forms\/.*sf_link>', msg).group()[1:-1]
+                    url = re.sub('\?.*', '', url)
+                    url = url.replace('=', '')
+                    print(url)
+                    self.submitForm(url=url)
+                    typ, data = self.imap.store(data[0].replace(' ',','),'+FLAGS','\Seen')
 
-#Debugging info
-print("Your form response:\n\n%s\n" % submission)
+    #submits the form to said url
+    def submitForm(self, url):
+        #initialize the structs and get the form
+        starttime = datetime.now()
+        url_response = re.sub('viewform.*', 'formResponse', url)
+        page = u.urlopen(url)
+        page_text = page.read().decode("utf-8")
+        your_info = {}
+        entrylist = []
 
-response = requests.post(url_formresponse, data=submission, headers=user_agent)
+        #finding the order of the inputs
+        instrument_pos = re.search('Instrument', page_text).start(0)
+        lastname_pos = re.search('Last Name', page_text).start(0)
+        firstname_pos = re.search('First Name', page_text).start(0)
+        yearinband_pos = re.search('Year in Band', page_text).start(0)
+        comments_pos = re.search('Comments', page_text).start(0)
 
-#Debugging info
-print("Submitted using url %s\n\nResponse from Google: %s\n" % (response.url, response))
-print("Took %s seconds" % (datetime.now() - starttime))
+        your_info[instrument_pos] = self.INSTRUMENT
+        your_info[lastname_pos] = self.LASTNAME
+        your_info[firstname_pos] = self.FIRSTNAME
+        your_info[yearinband_pos] = self.YEARINBAND
+        your_info[comments_pos] = self.COMMENTS
+
+        #Finding Google Form entries from the form
+        for m in re.finditer('entry\.[0-9-]*', page_text):
+            entrylist.append(m.group())
+
+        #Building POST request
+        i = 0
+        for key in sorted(your_info):
+            self.submission[entrylist[i]] = your_info[key]
+            i += 1
+
+        #metadata
+        fbzx_substring = re.search('\"fbzx\" value=\"[0-9-]*\"', page_text).group()
+        fbzx_value = re.search('[0-9-]+', fbzx_substring).group()
+        fbzx_value_quotes = '"' + fbzx_value + '"'
+
+        self.submission['draftResponse'] = [None,None,fbzx_value_quotes]
+        self.submission['fbzx'] = fbzx_value
+
+        url_refer = re.sub('viewform.*', 'viewform\?fbzx=', url) + fbzx_value
+        user_agent = {'Referer': url_refer, 'User-Agent': "Mozilla/5.0 \
+        (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) \
+        Chrome/62.0.3202.62 Safari/537.36"}
+
+        response = requests.post(url_response, data=self.submission, headers=user_agent)
+        print("Took %s seconds to submit the form" % (datetime.now() - starttime))
+
+    def run(self):
+        while True:
+            if (self.stopped()):
+                break
+            self.checkEmail()
+            time.sleep(3)
+
+def main():
+    username = input("Gmail username: ")
+    password = getpass()
+    e = EmailBot(username, password)
+    e.start()
+    str = input("Press enter at any time to stop the email bot\n")
+    e.stop()
+
+if __name__ == '__main__':
+    main()
