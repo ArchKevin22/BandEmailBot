@@ -86,6 +86,7 @@ class EmailBot(threading.Thread):
                 typ, data = self.imap.fetch(num, '(RFC822)')
                 msg = data[0][1].decode("utf-8").replace('\r\n', '')
                 if 'Ken Fisher' in msg:
+                    starttime = datetime.now()
                     title = re.search('Subject: .* CallM', msg)
                     if title != None:
                         print("Message found, processing %s", title.group()[:-1])
@@ -96,11 +97,11 @@ class EmailBot(threading.Thread):
                             url = url.replace('=', '')
                             self.submit_form(url=url)
                             typ, data = self.imap.store(num, '+FLAGS', '\\Seen')
+                    print("Took %s seconds to process the email" % (datetime.now() - starttime))
 
     def submit_form(self, url):
         '''Submits the form to the given url.'''
         #initialize the structs and get the form
-        starttime = datetime.now()
         url_response = re.sub('viewform.*', 'formResponse', url)
         page = u.urlopen(url)
         page_text = page.read().decode("utf-8")
@@ -138,8 +139,8 @@ class EmailBot(threading.Thread):
         Chrome/62.0.3202.62 Safari/537.36"}
 
         response = requests.post(url_response, data=self.submission, headers=user_agent)
-        print("Took %s seconds to submit the form" % (datetime.now() - starttime))
-
+        print("Form submitted")
+        
     def run(self):
         '''Event loop for the email bot.
         While the bot isn't stopped, it will check your email every second.'''
