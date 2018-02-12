@@ -85,7 +85,7 @@ class EmailBot(threading.Thread):
             for num in messages[0].split():
                 typ, data = self.imap.fetch(num, '(RFC822)')
                 msg = data[0][1].decode("utf-8").replace('\r\n', '')
-                if 'Ken Fisher' in msg:
+                if 'Ken Fisher' in msg and 'Armour' in msg:
                     starttime = datetime.now()
                     title = re.search('Subject: .* CallM', msg)
                     if title != None:
@@ -148,7 +148,7 @@ class EmailBot(threading.Thread):
             if self.stopped():
                 break
             self.check_email()
-            time.sleep(1)
+            time.sleep(2)
 
 def main():
     '''The main method.
