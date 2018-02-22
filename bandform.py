@@ -71,7 +71,6 @@ class EmailBot(threading.Thread):
 
     def sighandler(self, signum, frame):
         '''In case someone does CTRL+C instead of press ENTER/RETURN, ends the session'''
-        print("I said PRESS ENTER/RETURN, NOT CTRL+C, but whatever I'll still end your session")
         print("Stopping email session...")
         self.stop()
         print("Have a nice day!")
@@ -158,9 +157,8 @@ def main():
     password = getpass()
     e = EmailBot(username, password)
     e.start()
-    input("Press ENTER or RETURN at any time to stop the email bot\n")
-    print("Stopping email session...")
-    e.stop()
+    while True:
+        input("Press CTRL+C at any time to stop the email bot\n")
     print("Have a nice day!")
 
 if __name__ == '__main__':
