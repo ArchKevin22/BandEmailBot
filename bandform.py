@@ -80,24 +80,22 @@ class EmailBot(threading.Thread):
     def check_email(self):
         '''Checks your email and hunts for the Google Form link if
         an email from Ken Fisher is found.'''
-        retcode, messages = self.imap.search(None, '(UNSEEN)')
+        retcode, messages = self.imap.search(None, '(OR (FROM "kenfisher@uclaband.com") (FROM "pauladdleman@uclaband.com") UNSEEN)')
         if retcode == 'OK':
             for num in messages[0].split():
                 typ, data = self.imap.fetch(num, '(RFC822)')
                 msg = data[0][1].decode("utf-8").replace('\r\n', '')
-                if 'Ken Fisher' in msg and 'Armour' in msg:
-                    starttime = datetime.now()
-                    title = re.search('Subject: .* CallM', msg)
-                    if title != None:
-                        print("Message found, processing %s", title.group()[:-1])
-                        url = re.search('<https:\/\/docs.google.com\/forms\/.*sf_link>', msg)
-                        if url != None:
-                            url = url.group()[1:-1]
-                            url = re.sub('\?.*', '', url)
-                            url = url.replace('=', '')
-                            self.submit_form(url=url)
-                            typ, data = self.imap.store(num, '+FLAGS', '\\Seen')
-                    print("Took %s seconds to process the email" % (datetime.now() - starttime))
+                starttime = datetime.now()
+                title = re.search('Subject: .* CallTo', msg)
+                print("Message found, processing ", title.group()[9:-2])
+                url = re.search('<https:\/\/docs.google.com\/forms\/.*sf_link>', msg)
+                if url != None:
+                    url = url.group()[1:-1]
+                    url = re.sub('\?.*', '', url)
+                    url = url.replace('=', '')
+                    self.submit_form(url=url)
+                print("Took %s seconds to process the email" % (datetime.now() - starttime))
+                typ, data = self.imap.store(num, '+FLAGS', '\\Seen')
 
     def submit_form(self, url):
         '''Submits the form to the given url.'''
@@ -133,7 +131,7 @@ class EmailBot(threading.Thread):
         self.submission['draftResponse'] = [None, None, fbzx_value_quotes]
         self.submission['fbzx'] = fbzx_value
 
-        url_refer = re.sub('viewform.*', 'viewform\\?fbzx=', url) + fbzx_value
+        url_refer = re.sub('viewform.*', 'viewform?fbzx=', url) + fbzx_value
         user_agent = {'Referer': url_refer, 'User-Agent': "Mozilla/5.0 \
         (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) \
         Chrome/62.0.3202.62 Safari/537.36"}
