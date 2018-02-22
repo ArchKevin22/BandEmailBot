@@ -86,8 +86,11 @@ class EmailBot(threading.Thread):
                 typ, data = self.imap.fetch(num, '(RFC822)')
                 msg = data[0][1].decode("utf-8").replace('\r\n', '')
                 starttime = datetime.now()
-                title = re.search('Subject: .* CallTo', msg)
-                print("Message found, processing ", title.group()[9:-2])
+                title = re.search('Subject: .* To', msg)
+                if title != None:
+                    print("Message found, processing ", title.group()[9:-2])
+                else:
+                    print("Processing title without a subject line...")
                 url = re.search('<https:\/\/docs.google.com\/forms\/.*sf_link>', msg)
                 if url != None:
                     url = url.group()[1:-1]
