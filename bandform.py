@@ -31,6 +31,10 @@ class EmailBot(threading.Thread):
         super(EmailBot, self).__init__()
         self._stop_event = threading.Event()
         self.imap = imaplib.IMAP4_SSL('imap.gmail.com', 993)
+        
+        #You must trust that Python's memory handling is secure
+        self.username = username
+        self.password = password
 
         ###Your information (FILL THIS OUT CAREFULLY)###
         self.first_name = "Kevin"
@@ -44,7 +48,7 @@ class EmailBot(threading.Thread):
         self.submission['fvv'] = '1'
         self.submission['pageHistory'] = '0'
 
-        self.login(username, password)
+        self.login(self.username, self.password)
     
     def stop(self):
         '''Stop the email bot thread.
@@ -70,7 +74,7 @@ class EmailBot(threading.Thread):
             sys.exit(1)
 
     def sighandler(self, signum, frame):
-        '''In case someone does CTRL+C instead of press ENTER/RETURN, ends the session'''
+        '''Ends the session'''
         print("Stopping email session...")
         self.stop()
         print("Have a nice day!")
@@ -78,26 +82,32 @@ class EmailBot(threading.Thread):
 
     def check_email(self):
         '''Checks your email and hunts for the Google Form link if
-        an email from Ken Fisher is found.'''
-        retcode, messages = self.imap.search(None, '(OR (FROM "kenfisher@uclaband.com") (FROM "pauladdleman@uclaband.com") UNSEEN)')
-        if retcode == 'OK':
-            for num in messages[0].split():
-                typ, data = self.imap.fetch(num, '(RFC822)')
-                msg = data[0][1].decode("utf-8").replace('\r\n', '')
-                starttime = datetime.now()
-                title = re.search('Subject: .* To', msg)
-                if title != None:
-                    print("Message found, processing ", title.group()[9:-2])
-                else:
-                    print("Processing title without a subject line...")
-                url = re.search('<https:\/\/docs.google.com\/forms\/.*sf_link>', msg)
-                if url != None:
-                    url = url.group()[1:-1]
-                    url = re.sub('\?.*', '', url)
-                    url = url.replace('=', '')
-                    self.submit_form(url=url)
-                print("Took %s seconds to process the email" % (datetime.now() - starttime))
-                typ, data = self.imap.store(num, '+FLAGS', '\\Seen')
+        an email from Ken Fisher or Paul Addleman is found.'''
+        try:
+            retcode, messages = self.imap.search(None, '(OR (FROM "kenfisher@uclaband.com") (FROM "pauladdleman@uclaband.com") UNSEEN)')
+            if retcode == 'OK':
+                for num in messages[0].split():
+                    typ, data = self.imap.fetch(num, '(RFC822)')
+                    msg = data[0][1].decode("utf-8").replace('\r\n', '')
+                    starttime = datetime.now()
+                    title = re.search('Subject: .* To', msg)
+                    if title != None:
+                        print("Message found, processing ", title.group()[9:-2])
+                    else:
+                        print("Processing title without a subject line...")
+                    url = re.search('<https:\/\/docs.google.com\/forms\/.*sf_link>', msg)
+                    if url != None:
+                        url = url.group()[1:-1]
+                        url = re.sub('\?.*', '', url)
+                        url = url.replace('=', '')
+                        self.submit_form(url=url)
+                    print("Took %s seconds to process the email" % (datetime.now() - starttime))
+                    typ, data = self.imap.store(num, '+FLAGS', '\\Seen')
+        except IMAP4.abort:
+            print("Error! Attempting to reconnect to Gmail...")
+            self.imap = imaplib.IMAP4_SSL('imap.gmail.com', 993)
+            self.login(self.username, self.password)
+            continue
 
     def submit_form(self, url):
         '''Submits the form to the given url.'''
@@ -141,7 +151,7 @@ class EmailBot(threading.Thread):
         response = requests.post(url_response, data=self.submission, headers=user_agent)
         print("Form submitted")
         
-    def run(self):
+        def run(self):
         '''Event loop for the email bot.
         While the bot isn't stopped, it will check your email every second.'''
         while True:
@@ -159,7 +169,6 @@ def main():
     e.start()
     while True:
         input("Press CTRL+C at any time to stop the email bot\n")
-    print("Have a nice day!")
 
 if __name__ == '__main__':
     main()
