@@ -31,7 +31,7 @@ class EmailBot(threading.Thread):
         super(EmailBot, self).__init__()
         self._stop_event = threading.Event()
         self.imap = imaplib.IMAP4_SSL('imap.gmail.com', 993)
-        
+
         #You must trust that Python's memory handling is secure
         self.username = username
         self.password = password
@@ -151,7 +151,7 @@ class EmailBot(threading.Thread):
         response = requests.post(url_response, data=self.submission, headers=user_agent)
         print("Form submitted")
         
-        def run(self):
+    def run(self):
         '''Event loop for the email bot.
         While the bot isn't stopped, it will check your email every second.'''
         while True:
