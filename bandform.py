@@ -105,6 +105,7 @@ class EmailBot(threading.Thread):
                     typ, data = self.imap.store(num, '+FLAGS', '\\Seen')
         except IMAP4.abort:
             print("Error! Attempting to reconnect to Gmail...")
+            self.imap.logout()
             self.imap = imaplib.IMAP4_SSL('imap.gmail.com', 993)
             self.login(self.username, self.password)
             continue
